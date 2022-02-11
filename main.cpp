@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <fstream>
 
 using namespace std;
 
@@ -104,9 +105,21 @@ public:
         }
     }
 
+    friend ofstream& operator<<(ofstream&, const Database&);
 private:
     map<Date, set<string>> storage;
 };
+
+//Перезагрузка для чтения БД из файла
+ofstream& operator<<(ofstream& stream, const Database& db)  {
+    for (const auto& item : db.storage) {
+        for (const string& event : item.second) {
+            stream << item.first << " " << event << endl;
+        }
+    }
+    return stream;
+}
+
 
 //Обработка даты из входного потока
 //Вывод ошибки при некорректном вводе
@@ -134,13 +147,27 @@ Date ParseDate(const string& date) {
     return Date(year, month, day);
 }
 
+
+void Add (Database& db, stringstream& str){
+    string date_str, event;
+    str >> date_str;
+    while (!str.eof()) {
+        string n;
+        str >> n;
+        event += n + " ";
+    }
+    const Date date = ParseDate(date_str);
+    db.AddEvent(date, event);
+};
+
 int main() {
     Database db;
 
     string command_line;
 
-    cout << "Please, enter a command: Add, Del, Find, Print, End" << endl <<
-         "For example:" << endl << "Add 0000-01-01 Event" << endl <<
+    cout << "Please, enter a command: Add, Del, Find, Print, Save, Read, Clean, End" << endl <<
+         "Save, Read, Clean - these are commands for working with a file" << endl <<
+         "Special format for input:" << endl << "Add 0000-01-01 Event" << endl <<
          "Del 0000-01-01 or Del 0000-01-01 Event" << endl <<
          "Find 0000-01-01" << endl;
 
@@ -154,10 +181,7 @@ int main() {
 
             if (command == "Add") {
 
-                string date_str, event;
-                ss >> date_str >> event;
-                const Date date = ParseDate(date_str);
-                db.AddEvent(date, event);
+                Add(db, ss);
 
             } else if (command == "Del") {
 
@@ -192,10 +216,42 @@ int main() {
 
                 db.Print();
 
+            } else if (command == "Save") {
+
+                ofstream fout("save_bd.txt", ios::app);
+                if(!fout) {
+                    throw logic_error("The file if not open");
+                }
+                fout << db;
+                fout.close();
+
+            } else if (command == "Read") {
+
+                ifstream inf("save_bd.txt");
+                if(!inf) {
+                    throw logic_error("The file if not open");
+                }
+
+                string line;
+                while(getline(inf, line)) {
+                    stringstream str(line);
+                    cout << line << endl;
+                    Add(db,str);
+                }
+                inf.close();
+
+            } else if (command == "Clean"){
+
+                ofstream fout("save_bd.txt");
+                if(!fout) {
+                    throw logic_error("The file if not open");
+                }
+                fout.close();
+
             } else if (command == "End") {
 
-                cout << "Goodbye!";
-                break;
+                    cout << "Goodbye!";
+                    break;
 
             } else if (!command.empty()) {
 
